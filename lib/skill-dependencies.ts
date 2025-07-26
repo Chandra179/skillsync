@@ -104,21 +104,9 @@ export const SKILL_DEPENDENCIES: SkillDependency[] = [
   }
 ]
 
-// Helper function to get all skills from nested tree
+// Helper function to get all skills from flat array
 function getAllSkills(skills: Skill[]): Skill[] {
-  const allSkills: Skill[] = []
-  
-  function traverse(skillList: Skill[]) {
-    for (const skill of skillList) {
-      allSkills.push(skill)
-      if (skill.subSkills.length > 0) {
-        traverse(skill.subSkills)
-      }
-    }
-  }
-  
-  traverse(skills)
-  return allSkills
+  return skills
 }
 
 // Helper function to normalize skill names for comparison

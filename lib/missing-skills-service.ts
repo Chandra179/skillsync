@@ -151,19 +151,7 @@ export async function discoverMissingSkillsHybrid(
  * Helper function to get all skills in a flat array
  */
 function getAllSkillsFlat(skills: Skill[]): Skill[] {
-  const allSkills: Skill[] = []
-  
-  function traverse(skillList: Skill[]) {
-    for (const skill of skillList) {
-      allSkills.push(skill)
-      if (skill.subSkills?.length > 0) {
-        traverse(skill.subSkills)
-      }
-    }
-  }
-  
-  traverse(skills)
-  return allSkills
+  return skills
 }
 
 /**

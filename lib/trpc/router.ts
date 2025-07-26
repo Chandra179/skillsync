@@ -3,12 +3,10 @@ import { z } from 'zod'
 import { validateSkillConsistency, getSkillWarnings } from '../skill-dependencies'
 
 // Define Zod schemas for skill validation
-const skillSchema: z.ZodType<any> = z.object({
+const skillSchema = z.object({
   id: z.string(),
   name: z.string(),
   proficiency: z.enum(['Want to Learn', 'Learning', 'Proficient', 'Mastered']),
-  subSkills: z.array(z.lazy(() => skillSchema)),
-  parentId: z.string().optional(),
   checklist: z.array(z.object({
     id: z.string(),
     text: z.string(),

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronDown, ChevronRight, Brain } from 'lucide-react'
+import { Brain, MoreVertical, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skill, ProficiencyLevel, useSkillStore } from '@/lib/store'
-import { SkillChecklist } from '@/components/skill-checklist'
 import { getSkillChecklist } from '@/lib/skill-checklists'
 import { TeachingEvaluationDialog } from '@/components/teaching-evaluation-dialog'
 import { ConsistencyWarnings } from '@/components/consistency-warnings'
@@ -15,7 +15,6 @@ import { getSkillWarnings } from '@/lib/skill-dependencies'
 
 interface SkillCardProps {
   skill: Skill
-  level: number
 }
 
 const proficiencyColors = {
@@ -25,9 +24,8 @@ const proficiencyColors = {
   'Mastered': 'bg-purple-100 text-purple-800 border-purple-300'
 }
 
-export function SkillCard({ skill, level }: SkillCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const { skills, updateSkillProficiency, toggleChecklistItem, initializeChecklist } = useSkillStore()
+export function SkillCard({ skill }: SkillCardProps) {
+  const { skills, updateSkillProficiency, toggleChecklistItem, initializeChecklist, removeSkill } = useSkillStore()
   
   // Get consistency warnings for this specific skill
   const skillWarnings = getSkillWarnings(skills, skill.id)
@@ -46,32 +44,20 @@ export function SkillCard({ skill, level }: SkillCardProps) {
     updateSkillProficiency(skill.id, proficiency)
   }
 
-  const handleChecklistItemToggle = (itemId: string) => {
-    toggleChecklistItem(skill.id, itemId)
+  const handleRemoveSkill = () => {
+    removeSkill(skill.id)
   }
-
-  const marginClass = level === 0 ? '' : level === 1 ? 'ml-4' : level === 2 ? 'ml-8' : 'ml-12'
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={marginClass}
     >
       <Card className="mb-3">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {skill.subSkills.length > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="h-6 w-6 p-0"
-                >
-                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </Button>
-              )}
               <h3 className="font-semibold text-lg">{skill.name}</h3>
             </div>
             <div className="flex items-center gap-2">
@@ -86,6 +72,19 @@ export function SkillCard({ skill, level }: SkillCardProps) {
                   </Button>
                 </TeachingEvaluationDialog>
               )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleRemoveSkill} className="text-red-600 focus:text-red-600">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove Skill
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
@@ -109,12 +108,12 @@ export function SkillCard({ skill, level }: SkillCardProps) {
             </div>
           )}
           
-          {skill.checklist && skill.checklist.length > 0 && (
+          {/* {skill.checklist && skill.checklist.length > 0 && (
             <SkillChecklist
               items={skill.checklist}
               onItemToggle={handleChecklistItemToggle}
             />
-          )}
+          )} */}
 
           {skill.teachingEvaluations && skill.teachingEvaluations.length > 0 && (
             <div className="mt-4 pt-4 border-t">
@@ -144,18 +143,6 @@ export function SkillCard({ skill, level }: SkillCardProps) {
         </CardContent>
       </Card>
 
-      {isExpanded && skill.subSkills.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {skill.subSkills.map((subSkill) => (
-            <SkillCard key={subSkill.id} skill={subSkill} level={level + 1} />
-          ))}
-        </motion.div>
-      )}
     </motion.div>
   )
 }

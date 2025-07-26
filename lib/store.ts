@@ -27,8 +27,6 @@ export interface Skill {
   id: string
   name: string
   proficiency: ProficiencyLevel
-  subSkills: Skill[]
-  parentId?: string
   checklist?: ChecklistItem[]
   teachingEvaluations?: TeachingEvaluation[]
 }
@@ -36,16 +34,15 @@ export interface Skill {
 export interface UserProfile {
   yearsOfExperience: number
   currentRole: string
-  experience?: number
-  role?: string
 }
 
 interface SkillState {
   skills: Skill[]
   userProfile: UserProfile
   profile?: UserProfile
-  addSkill: (skillData: { name: string; proficiency?: ProficiencyLevel }, parentId?: string) => void
+  addSkill: (skillData: { name: string; proficiency?: ProficiencyLevel }) => void
   updateSkillProficiency: (id: string, proficiency: ProficiencyLevel) => void
+  removeSkill: (id: string) => void
   updateUserProfile: (profile: Partial<UserProfile>) => void
   toggleChecklistItem: (skillId: string, itemId: string) => void
   initializeChecklist: (skillId: string, items: ChecklistItem[]) => void
@@ -56,41 +53,25 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 11)
 }
 
-function addSkillToTree(skills: Skill[], skillData: { name: string; proficiency?: ProficiencyLevel }, parentId?: string): Skill[] {
+function addSkillToTree(skills: Skill[], skillData: { name: string; proficiency?: ProficiencyLevel }): Skill[] {
   const { name, proficiency = 'Want to Learn' } = skillData
   
-  if (!parentId) {
-    const newSkill: Skill = {
-      id: generateId(),
-      name,
-      proficiency,
-      subSkills: []
-    }
-    return [...skills, newSkill]
+  // Check for case-insensitive duplicates
+  const existingSkill = skills.find(skill => 
+    skill.name.toLowerCase() === name.toLowerCase()
+  )
+  
+  if (existingSkill) {
+    // Skip adding duplicate skill, return existing skills array
+    return skills
   }
-
-  return skills.map(skill => {
-    if (skill.id === parentId) {
-      const newSubSkill: Skill = {
-        id: generateId(),
-        name,
-        proficiency,
-        subSkills: [],
-        parentId
-      }
-      return {
-        ...skill,
-        subSkills: [...skill.subSkills, newSubSkill]
-      }
-    }
-    if (skill.subSkills.length > 0) {
-      return {
-        ...skill,
-        subSkills: addSkillToTree(skill.subSkills, skillData, parentId)
-      }
-    }
-    return skill
-  })
+  
+  const newSkill: Skill = {
+    id: generateId(),
+    name,
+    proficiency
+  }
+  return [...skills, newSkill]
 }
 
 function updateSkillProficiencyInTree(skills: Skill[], id: string, proficiency: ProficiencyLevel): Skill[] {
@@ -98,14 +79,12 @@ function updateSkillProficiencyInTree(skills: Skill[], id: string, proficiency: 
     if (skill.id === id) {
       return { ...skill, proficiency }
     }
-    if (skill.subSkills.length > 0) {
-      return {
-        ...skill,
-        subSkills: updateSkillProficiencyInTree(skill.subSkills, id, proficiency)
-      }
-    }
     return skill
   })
+}
+
+function removeSkillFromTree(skills: Skill[], id: string): Skill[] {
+  return skills.filter(skill => skill.id !== id)
 }
 
 function toggleChecklistItemInTree(skills: Skill[], skillId: string, itemId: string): Skill[] {
@@ -118,12 +97,6 @@ function toggleChecklistItemInTree(skills: Skill[], skillId: string, itemId: str
         )
       }
     }
-    if (skill.subSkills.length > 0) {
-      return {
-        ...skill,
-        subSkills: toggleChecklistItemInTree(skill.subSkills, skillId, itemId)
-      }
-    }
     return skill
   })
 }
@@ -132,12 +105,6 @@ function initializeChecklistInTree(skills: Skill[], skillId: string, items: Chec
   return skills.map(skill => {
     if (skill.id === skillId) {
       return { ...skill, checklist: items }
-    }
-    if (skill.subSkills.length > 0) {
-      return {
-        ...skill,
-        subSkills: initializeChecklistInTree(skill.subSkills, skillId, items)
-      }
     }
     return skill
   })
@@ -149,12 +116,6 @@ function addTeachingEvaluationToTree(skills: Skill[], skillId: string, evaluatio
       return {
         ...skill,
         teachingEvaluations: [...(skill.teachingEvaluations || []), evaluation]
-      }
-    }
-    if (skill.subSkills.length > 0) {
-      return {
-        ...skill,
-        subSkills: addTeachingEvaluationToTree(skill.subSkills, skillId, evaluation)
       }
     }
     return skill
@@ -176,11 +137,14 @@ export const useSkillStore = create<SkillState>((set, get) => ({
       currentRole: state.userProfile.currentRole
     }
   },
-  addSkill: (skillData, parentId) => set((state) => ({
-    skills: addSkillToTree(state.skills, skillData, parentId)
+  addSkill: (skillData) => set((state) => ({
+    skills: addSkillToTree(state.skills, skillData)
   })),
   updateSkillProficiency: (id, proficiency) => set((state) => ({
     skills: updateSkillProficiencyInTree(state.skills, id, proficiency)
+  })),
+  removeSkill: (id) => set((state) => ({
+    skills: removeSkillFromTree(state.skills, id)
   })),
   updateUserProfile: (profile) => set((state) => ({
     userProfile: { ...state.userProfile, ...profile }

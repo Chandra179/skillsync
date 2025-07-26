@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -69,13 +69,6 @@ export function MissingSkillsPanel() {
         return 'bg-blue-100 text-blue-800 border-blue-200'
     }
   }
-
-  // Auto-analysis removed - only triggered by manual refresh button
-  // useEffect(() => {
-  //   if (skills.length > 0 && userProfile.yearsOfExperience > 0 && userProfile.currentRole) {
-  //     analyzeMissingSkills()
-  //   }
-  // }, [skills.length, userProfile.yearsOfExperience, userProfile.currentRole, analyzeMissingSkills])
 
   if (skills.length === 0) {
     return (

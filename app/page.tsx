@@ -53,7 +53,7 @@ export default function Home() {
         ) : (
           <div className="space-y-4">
             {skills.map((skill) => (
-              <SkillCard key={skill.id} skill={skill} level={0} />
+              <SkillCard key={skill.id} skill={skill} />
             ))}
           </div>
         )}

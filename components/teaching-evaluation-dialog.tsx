@@ -35,9 +35,6 @@ export function TeachingEvaluationDialog({
   const addTeachingEvaluation = useSkillStore(state => state.addTeachingEvaluation)
 
   const evaluationPrompts = {
-    'golang': "Explain goroutines and when to use mutex vs channel.",
-    'docker': "Explain Docker containers and how they differ from virtual machines.",
-    'react': "Explain React's component lifecycle and when to use useEffect.",
     'default': `Explain a key concept in ${skillName} and provide practical examples.`
   }
 

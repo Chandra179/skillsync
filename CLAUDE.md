@@ -90,13 +90,10 @@ interface Skill {
 ### Phase Implementation Status
 
 **Phase 1** (✅ Completed):
-- Add/organize skills in hierarchical tree structure
-- Four-tier proficiency marking system
+- User can add skills
 - User profile collection (years of experience, current role)
-- Nested sub-skill creation and management
 
 **Phase 2** (🚧 Partially Implemented):
-- ✅ Self-assessment checklists for major skills
 - ✅ LLM-based teaching evaluation (UI implemented, backend pending)
 - ✅ Skill consistency validation ("You know Kubernetes but not Docker?")
 - ✅ Missing skill discovery and recommendations

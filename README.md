@@ -13,6 +13,29 @@ pnpm dev
 bun dev
 ```
 
+## Data
+
+SkillSync handles various types of user inputs and contains extensive hardcoded data for skill management. The complete data specification is available in [`data-bundle.json`](./data-bundle.json).
+
+### User Input Data Types
+- **User Profile**: Years of experience (number), current role (string)
+- **Skills Management**: Skill names (string), proficiency levels (4-tier enum)
+- **Skill Assessment**: Checklist completion (boolean), teaching explanations (text)
+
+### Hardcoded Data
+- **Proficiency Levels**: "Want to Learn", "Learning", "Proficient", "Mastered"
+- **Predefined Checklists**: 6 skills (Docker, Golang, JavaScript, React, Kubernetes, Python) with 5 assessment items each
+- **Skill Dependencies**: 22 comprehensive skill mappings with difficulty ratings (1-10), estimated learning hours, and prerequisite relationships
+- **Teaching Prompts**: Skill-specific evaluation questions for AI-powered teaching assessment
+- **Categorization System**: 6 skill categories (programming, infrastructure, devops, database, security, networking)
+
+### Data Flows
+1. **Skill Creation**: Input validation → ID generation → Auto-checklist initialization → State storage
+2. **Teaching Evaluation**: Skill selection → LLM scoring → Feedback display → Evaluation storage
+3. **Consistency Checking**: Dependency analysis → Warning generation → Recommendation display
+
+For complete technical specifications, data structures, and API integration details, see [`data-bundle.json`](./data-bundle.json).
+
 ## Tools
 1. Framework: Next.js (App Router) – fullstack-friendly, fast routing, React-based
 2. Styling: Tailwind CSS – fast, utility-first UI building
@@ -21,15 +44,14 @@ bun dev
 5. Animations: Framer Motion – smooth transitions for UI polish
 6. API Layer: tRPC – type-safe, fast API dev with zero boilerplate
 7. Backend Platform: Supabase – auth + PostgreSQL + storage + serverless functions
-8. LLM API: OpenAI SDK – explanation scoring, challenge generation, suggestions
+8. LLM: LLM Studio – explanation scoring, challenge generation, suggestions
 9. Graph/Skill Trees: D3.js – powerful for building interactive skill trees
 10. Embeddings / Vector Search: Supabase Vector (Postgres extension)
 
 ## Phase 1  
 1. user can add skills i.e: golang, java, leadership
-2. user can add sub skill for root skill, i.e: user clicks plus button on a skill to add a subskill
-3. user can mark the skill as (Want to Learn / Learning / Proficient / Mastered)
-4. user input some basic information like years of work experience, current role
+2. user can mark the skill as (Want to Learn / Learning / Proficient / Mastered)
+3. user input some basic information like years of work experience, current role
 ### Required Tools
 - **Next.js** – app structure, routing  
 - **Tailwind CSS** – fast UI building  
@@ -41,27 +63,26 @@ bun dev
 
 
 ## Phase 2
-1. self assessment skill checklist, example for docker: [x]Build Dockerfile from scratch [x]Use multi-stage builds []Optimize for performance
-2. ask user to teach it “Explain goroutines and when to use mutex vs channel.” then we score based on Clarity, Coverage, Depth, Misconceptions
-3. skill consistency checks like "You know Kubernetes but don’t know Docker?"
-4. analyze the missing skills from root skill. We need to research of how we discover the missing skill
+1. ask user to teach it, for example “Explain goroutines and when to use mutex vs channel.” then we score based on Clarity, Coverage, Depth, Misconceptions
+2. skill consistency checks like "You know Kubernetes but don’t know Docker?"
+3. analyze the missing skills. We need to research of how we discover the missing skill
 ### Required Tools
 - **All Phase 1 tools**  
-- **OpenAI SDK** – explanation scoring with LLM  
+- **LLM studio** – explanation scoring with LLM  
 - **Supabase Vector** – store embeddings of user answers or concepts  
 - **Custom logic in tRPC** – for skill consistency heuristics  
 
 
 ## Phase 3 
-1. lets says your skill is golang, conccurency, image processing. we can add relation to the skill like conccurency
+1. showing suggestion like, recommended to learn this before move to next one
+2. lets says your skill is golang, conccurency, image processing. we can add relation to the skill like conccurency
    can be used to make image processing faster.
-2. showing suggestion like, recommended to learn this before move to next one
 
 ### Required Tools
 - **All Phase 2 tools**  
 - **PostgreSQL with edge tables** – skill relationships  
 - **D3.js** – visualizing skill relationships  
-- **Optional: OpenAI SDK** – to infer related skills or next steps  
+- **Optional: LLM studio** – to infer related skills or next steps  
 
 
 ## Phase 4
@@ -70,7 +91,7 @@ bun dev
 ### Required Tools
 - **All Phase 3 tools**  
 - **D3.js** – compare skill trees visually  
-- **OpenAI SDK** – generate contextual skill challenges  
+- **LLM studio** – generate contextual skill challenges  
 
 
 ## Next big things

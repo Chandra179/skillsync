@@ -1,5 +1,5 @@
 import { Skill } from './store'
-import { SKILL_DEPENDENCIES } from './skill-dependencies'
+import { SKILL_DEPENDENCIES, UserContext, getSkillDependencies } from './skill-dependencies'
 
 export interface MissingSkill {
   id: string
@@ -19,7 +19,54 @@ export interface SkillAnalysisRequest {
 }
 
 /**
- * Discover missing prerequisite skills using rule-based approach
+ * Discover missing prerequisite skills using hybrid approach
+ */
+export async function discoverMissingSkillsFromHybrid(skills: Skill[], userContext?: UserContext): Promise<MissingSkill[]> {
+  const missingSkills: MissingSkill[] = []
+  const allSkills = getAllSkillsFlat(skills)
+  const skillNames = allSkills.map(s => s.name.toLowerCase())
+  
+  // Check each skill for missing prerequisites using hybrid system
+  for (const skill of allSkills) {
+    if (skill.proficiency === 'Want to Learn') continue
+    
+    try {
+      // Use the new hybrid dependency system
+      const dependencyData = await getSkillDependencies(skill.name, userContext)
+      
+      if (!dependencyData.dependencies.length) continue
+      
+      // Check each dependency
+      for (const dependency of dependencyData.dependencies) {
+        const hasPrerequisite = skillNames.some(name => 
+          name === dependency.toLowerCase() ||
+          name.includes(dependency.toLowerCase()) ||
+          dependency.toLowerCase().includes(name)
+        )
+        
+        if (!hasPrerequisite) {
+          missingSkills.push({
+            id: `hybrid-${skill.id}-${dependency.toLowerCase().replace(/\s+/g, '-')}`,
+            name: dependency,
+            reason: `Required for ${skill.name} - ${dependencyData.description}`,
+            confidence: dependencyData.source === 'algorithmic' ? 'high' : 'medium',
+            source: 'hybrid',
+            parentSkill: skill.name,
+            category: dependencyData.category || getCategoryForSkill(dependency)
+          })
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to get dependencies for ${skill.name}:`, error)
+      // Continue with other skills
+    }
+  }
+  
+  return removeDuplicateMissingSkills(missingSkills)
+}
+
+/**
+ * Discover missing prerequisite skills using rule-based approach (legacy)
  */
 export function discoverMissingSkillsFromRules(skills: Skill[]): MissingSkill[] {
   const missingSkills: MissingSkill[] = []
@@ -87,7 +134,7 @@ export async function analyzeSkillWithLLM(request: SkillAnalysisRequest): Promis
     }
     
     const data = await response.json()
-    const llmResults: any[] = Array.isArray(data.suggestions) ? data.suggestions : []
+    const llmResults: Array<{name: string; reason: string; confidence: string; category: string}> = Array.isArray(data.suggestions) ? data.suggestions : []
     
     return llmResults.map((result, index) => ({
       id: `llm-${request.skillName.toLowerCase().replace(/\s+/g, '-')}-${index}`,
@@ -106,45 +153,20 @@ export async function analyzeSkillWithLLM(request: SkillAnalysisRequest): Promis
 }
 
 /**
- * Hybrid approach: combine rule-based and LLM analysis
+ * Enhanced hybrid approach using new skill dependency system
  */
-export async function discoverMissingSkillsHybrid(
+export async function discoverMissingSkillsEnhanced(
   skills: Skill[], 
-  userExperience: number, 
-  currentRole: string
+  userContext: UserContext
 ): Promise<MissingSkill[]> {
-  const allSkills = getAllSkillsFlat(skills)
-  const skillNames = allSkills.map(s => s.name)
-  
-  // Get rule-based suggestions
-  const ruleBased = discoverMissingSkillsFromRules(skills)
-  
-  // Get LLM analysis for complex skills
-  const complexSkills = allSkills.filter(skill => 
-    skill.proficiency !== 'Want to Learn' && 
-    isComplexSkill(skill.name)
-  )
-  
-  const llmPromises = complexSkills.slice(0, 3).map(skill => // Limit to 3 to avoid API costs
-    analyzeSkillWithLLM({
-      skillName: skill.name,
-      userExperience,
-      currentRole,
-      existingSkills: skillNames
-    })
-  )
-  
-  const llmResults = await Promise.all(llmPromises)
-  const allLlmSuggestions = llmResults.flat()
-  
-  // Combine and validate suggestions
-  const combined = [...ruleBased, ...allLlmSuggestions]
-  const validated = validateMissingSuggestions(combined, skillNames)
-  
-  // Mark hybrid confidence for overlapping suggestions
-  const final = markHybridConfidence(validated)
-  
-  return removeDuplicateMissingSkills(final).slice(0, 10) // Limit to top 10
+  try {
+    // Use the new hybrid approach directly
+    return await discoverMissingSkillsFromHybrid(skills, userContext)
+  } catch (error) {
+    console.error('Error in enhanced missing skills discovery:', error)
+    // Fallback to rule-based approach
+    return discoverMissingSkillsFromRules(skills)
+  }
 }
 
 /**
@@ -152,67 +174,6 @@ export async function discoverMissingSkillsHybrid(
  */
 function getAllSkillsFlat(skills: Skill[]): Skill[] {
   return skills
-}
-
-/**
- * Check if a skill is considered complex (worth LLM analysis)
- */
-function isComplexSkill(skillName: string): boolean {
-  const complexSkillKeywords = [
-    'kubernetes', 'docker', 'aws', 'azure', 'gcp', 'terraform', 'ansible',
-    'microservices', 'devops', 'ci/cd', 'machine learning', 'ai', 'blockchain',
-    'react', 'vue', 'angular', 'next.js', 'django', 'spring', 'express',
-    'postgresql', 'mongodb', 'redis', 'elasticsearch', 'kafka', 'rabbitmq'
-  ]
-  
-  const lowerSkillName = skillName.toLowerCase()
-  return complexSkillKeywords.some(keyword => 
-    lowerSkillName.includes(keyword) || keyword.includes(lowerSkillName)
-  )
-}
-
-/**
- * Validate that missing skill suggestions are not already in user's skill tree
- */
-function validateMissingSuggestions(suggestions: MissingSkill[], existingSkills: string[]): MissingSkill[] {
-  const existingLower = existingSkills.map(s => s.toLowerCase())
-  
-  return suggestions.filter(suggestion => {
-    const suggestionLower = suggestion.name.toLowerCase()
-    return !existingLower.some(existing => 
-      existing === suggestionLower ||
-      existing.includes(suggestionLower) ||
-      suggestionLower.includes(existing)
-    )
-  })
-}
-
-/**
- * Mark suggestions that appear in both rules and LLM as hybrid with higher confidence
- */
-function markHybridConfidence(suggestions: MissingSkill[]): MissingSkill[] {
-  const ruleSkills = suggestions.filter(s => s.source === 'rules')
-  const llmSkills = suggestions.filter(s => s.source === 'llm')
-  
-  return suggestions.map(suggestion => {
-    if (suggestion.source === 'rules') {
-      // Check if LLM also suggested this skill
-      const llmMatch = llmSkills.find(llm => 
-        llm.name.toLowerCase() === suggestion.name.toLowerCase()
-      )
-      
-      if (llmMatch) {
-        return {
-          ...suggestion,
-          source: 'hybrid' as const,
-          confidence: 'high' as const,
-          reason: `${suggestion.reason} (Confirmed by AI analysis)`
-        }
-      }
-    }
-    
-    return suggestion
-  })
 }
 
 /**
@@ -266,3 +227,4 @@ function getCategoryForSkill(skillName: string): string {
   
   return 'other'
 }
+

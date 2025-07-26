@@ -11,38 +11,17 @@ interface LLMResponse {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { skillName, userContext } = body
+    const { skillName, prompt, userContext } = body
     
-    if (!skillName || !userContext) {
+    if (!skillName) {
       return NextResponse.json(
-        { error: 'Missing skillName or userContext' },
+        { error: 'Missing skillName' },
         { status: 400 }
       )
     }
 
-    // Build the prompt for skill prerequisite analysis
-    const prompt = `Analyze the skill "${skillName}" for someone with ${userContext.experience} years of experience in the role of "${userContext.role}".
-
-Current skills they have: ${userContext.existingSkills.join(', ')}
-
-Please identify missing prerequisite skills that would be important for mastering "${skillName}". Consider:
-1. Foundational technologies and concepts
-2. Related tools and frameworks
-3. System administration knowledge
-4. Programming languages or paradigms
-5. Infrastructure and deployment concepts
-
-Return a JSON array of missing skills with this format:
-[
-  {
-    "name": "skill name",
-    "reason": "explanation of why this is needed",
-    "confidence": "high|medium|low",
-    "category": "programming|infrastructure|devops|database|security|networking|other"
-  }
-]
-
-Focus on skills that are truly prerequisite (needed before learning the target skill), not complementary skills. Limit to 5 most important missing skills.`
+    // Use custom prompt if provided, otherwise default to missing skills analysis
+    const analysisPrompt = prompt || buildDefaultPrompt(skillName, userContext)
 
     // Use your existing LMStudio setup
     const baseUrl = 'http://192.168.1.4:1234/v1'
@@ -57,13 +36,12 @@ Focus on skills that are truly prerequisite (needed before learning the target s
         messages: [
           {
             role: 'system',
-            content: `You are a senior technical advisor helping developers identify missing prerequisite skills. 
-            You must return valid JSON only. Do not include any explanatory text outside the JSON response.
-            Focus on truly prerequisite skills (must know before learning the target skill), not nice-to-have or complementary skills.`
+            content: `You are a professional skill analysis expert. Analyze skills across all domains including technical, business, creative, and academic fields. 
+            You must return valid JSON only. Do not include any explanatory text outside the JSON response.`
           },
           {
             role: 'user',
-            content: prompt
+            content: analysisPrompt
           }
         ],
         temperature: 0.3,
@@ -83,30 +61,59 @@ Focus on skills that are truly prerequisite (needed before learning the target s
     }
 
     // Parse the JSON response
-    let suggestions
+    let analysis
     try {
       // Try to extract JSON from the response
-      const jsonMatch = response.match(/\[[\s\S]*\]/)
+      const jsonMatch = response.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
-        suggestions = JSON.parse(jsonMatch[0])
+        analysis = JSON.parse(jsonMatch[0])
       } else {
-        suggestions = JSON.parse(response)
+        analysis = JSON.parse(response)
       }
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response as JSON:', response)
-      // Fallback: try to extract skills from text response
-      suggestions = extractSkillsFromText(response, skillName)
+      console.error('Failed to parse LLM response as JSON:', response)
+      
+      // For skill dependency analysis, try to extract structured data
+      if (prompt) {
+        throw new Error('Invalid JSON response from LLM')
+      } else {
+        // Fallback for missing skills analysis
+        const suggestions = extractSkillsFromText(response, skillName)
+        const validatedSuggestions = validateSuggestions(suggestions)
+        
+        return NextResponse.json({
+          success: true,
+          suggestions: validatedSuggestions,
+          skillName,
+          userContext
+        })
+      }
     }
 
-    // Validate and clean the suggestions
-    const validatedSuggestions = validateSuggestions(suggestions)
-
-    return NextResponse.json({
-      success: true,
-      suggestions: validatedSuggestions,
-      skillName,
-      userContext
-    })
+    // If this is a skill dependency analysis (has custom prompt), return the analysis
+    if (prompt) {
+      // Validate required fields for skill dependency analysis
+      const validatedAnalysis = {
+        dependencies: Array.isArray(analysis.dependencies) ? analysis.dependencies : [],
+        description: typeof analysis.description === 'string' ? analysis.description : `Analysis for ${skillName}`,
+        difficulty: typeof analysis.difficulty === 'number' ? Math.max(1, Math.min(10, analysis.difficulty)) : 5,
+        estimatedHours: typeof analysis.estimatedHours === 'number' ? Math.max(1, analysis.estimatedHours) : 20,
+        enables: Array.isArray(analysis.enables) ? analysis.enables : [],
+        category: typeof analysis.category === 'string' ? analysis.category : 'general'
+      }
+      
+      return NextResponse.json(validatedAnalysis)
+    } else {
+      // This is missing skills analysis
+      const validatedSuggestions = validateSuggestions(analysis)
+      
+      return NextResponse.json({
+        success: true,
+        suggestions: validatedSuggestions,
+        skillName,
+        userContext
+      })
+    }
 
   } catch (error) {
     console.error('Error in analyze-skill API:', error)
@@ -115,6 +122,34 @@ Focus on skills that are truly prerequisite (needed before learning the target s
       { status: 500 }
     )
   }
+}
+
+/**
+ * Build default prompt for missing skills analysis
+ */
+function buildDefaultPrompt(skillName: string, userContext: any): string {
+  return `Analyze the skill "${skillName}" for someone with ${userContext?.experience || 'unknown'} years of experience in the role of "${userContext?.role || 'professional'}".
+
+Current skills they have: ${userContext?.existingSkills?.join(', ') || 'none specified'}
+
+Please identify missing prerequisite skills that would be important for mastering "${skillName}". Consider:
+1. Foundational technologies and concepts
+2. Related tools and frameworks
+3. System administration knowledge
+4. Programming languages or paradigms
+5. Infrastructure and deployment concepts
+
+Return a JSON array of missing skills with this format:
+[
+  {
+    "name": "skill name",
+    "reason": "explanation of why this is needed",
+    "confidence": "high|medium|low",
+    "category": "programming|infrastructure|devops|database|security|networking|other"
+  }
+]
+
+Focus on skills that are truly prerequisite (needed before learning the target skill), not complementary skills. Limit to 5 most important missing skills.`
 }
 
 /**

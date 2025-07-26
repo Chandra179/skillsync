@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, Lightbulb, Brain, Settings } from 'lucide-react'
 import { useSkillStore } from '@/lib/store'
-import { discoverMissingSkillsHybrid, MissingSkill } from '@/lib/missing-skills-service'
+import { discoverMissingSkillsEnhanced, MissingSkill } from '@/lib/missing-skills-service'
 
 export function MissingSkillsPanel() {
   const { skills, userProfile, addSkill } = useSkillStore()
@@ -24,10 +24,12 @@ export function MissingSkillsPanel() {
     setError(null)
 
     try {
-      const discovered = await discoverMissingSkillsHybrid(
+      const discovered = await discoverMissingSkillsEnhanced(
         skills,
-        userProfile.yearsOfExperience,
-        userProfile.currentRole
+        {
+          yearsOfExperience: userProfile.yearsOfExperience,
+          currentRole: userProfile.currentRole
+        }
       )
       setMissingSkills(discovered)
     } catch (err) {
@@ -37,6 +39,7 @@ export function MissingSkillsPanel() {
       setLoading(false)
     }
   }, [skills, userProfile.yearsOfExperience, userProfile.currentRole])
+
 
   const addMissingSkill = (skill: MissingSkill) => {
     addSkill({
@@ -198,7 +201,7 @@ export function MissingSkillsPanel() {
               <p className="text-xs text-blue-800">
                 <span className="font-medium">How it works:</span> This analysis combines rule-based knowledge 
                 (predefined skill dependencies) with AI analysis of your specific context. 
-                Skills marked as "hybrid" were identified by both approaches for higher confidence.
+                Skills marked as &quot;hybrid&quot; were identified by both approaches for higher confidence.
               </p>
             </div>
           </div>

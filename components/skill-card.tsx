@@ -1,17 +1,18 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Brain, MoreVertical, Trash2 } from 'lucide-react'
+import { Brain, MoreVertical, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skill, ProficiencyLevel, useSkillStore } from '@/lib/store'
-import { getSkillChecklist } from '@/lib/skill-checklists'
 import { TeachingEvaluationDialog } from '@/components/teaching-evaluation-dialog'
 import { ConsistencyWarnings } from '@/components/consistency-warnings'
 import { getSkillWarnings } from '@/lib/skill-dependencies'
+import { getSkillLearningRecommendations, LearningPath } from '@/lib/learning-path-service'
+import { LearningRecommendations } from '@/components/learning-recommendations'
 
 interface SkillCardProps {
   skill: Skill
@@ -25,20 +26,32 @@ const proficiencyColors = {
 }
 
 export function SkillCard({ skill }: SkillCardProps) {
-  const { skills, updateSkillProficiency, toggleChecklistItem, initializeChecklist, removeSkill } = useSkillStore()
+  const { skills, updateSkillProficiency, removeSkill } = useSkillStore()
+  const [showRecommendations, setShowRecommendations] = useState(false)
+  const [learningPath, setLearningPath] = useState<LearningPath>({
+    targetSkill: '',
+    prerequisites: [],
+    nextSteps: [],
+    estimatedTotalHours: 0
+  })
   
   // Get consistency warnings for this specific skill
   const skillWarnings = getSkillWarnings(skills, skill.id)
-
+  
+  // Get learning recommendations for this skill
   useEffect(() => {
-    if (!skill.checklist) {
-      const predefinedChecklist = getSkillChecklist(skill.name)
-      if (predefinedChecklist) {
-        initializeChecklist(skill.id, predefinedChecklist)
+    const fetchLearningPath = async () => {
+      try {
+        const path = await getSkillLearningRecommendations(skill.name, skills)
+        setLearningPath(path)
+      } catch (error) {
+        console.error('Failed to fetch learning path:', error)
+        setLearningPath({ targetSkill: skill.name, prerequisites: [], nextSteps: [], estimatedTotalHours: 0 })
       }
     }
-  }, [skill.id, skill.name, skill.checklist, initializeChecklist])
-
+    
+    fetchLearningPath()
+  }, [skill.name, skills])
 
   const handleProficiencyChange = (proficiency: ProficiencyLevel) => {
     updateSkillProficiency(skill.id, proficiency)
@@ -105,6 +118,50 @@ export function SkillCard({ skill }: SkillCardProps) {
           {skillWarnings.length > 0 && (
             <div className="mt-4">
               <ConsistencyWarnings warnings={skillWarnings} />
+            </div>
+          )}
+          
+          {/* Learning Recommendations Section */}
+          {(learningPath.prerequisites.length > 0 || learningPath.nextSteps.length > 0) && (
+            <div className="mt-4">
+              <Button
+                variant="ghost"
+                onClick={() => setShowRecommendations(!showRecommendations)}
+                className="w-full justify-between p-2 h-auto text-sm"
+              >
+                <span>Learning Path Recommendations</span>
+                {showRecommendations ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+              
+              {showRecommendations && (
+                <div className="mt-3 space-y-3">
+                  {learningPath.prerequisites.length > 0 && (
+                    <LearningRecommendations
+                      recommendations={learningPath.prerequisites}
+                      title="Prerequisites"
+                      description={`Learn these skills before advancing your ${skill.name} proficiency`}
+                    />
+                  )}
+                  
+                  {learningPath.nextSteps.length > 0 && (
+                    <LearningRecommendations
+                      recommendations={learningPath.nextSteps}
+                      title="What This Enables"
+                      description={`Skills you can learn next with your ${skill.name} knowledge`}
+                    />
+                  )}
+                  
+                  {learningPath.estimatedTotalHours > 0 && (
+                    <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
+                      Total estimated learning time for prerequisites: {learningPath.estimatedTotalHours} hours
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           

@@ -1,0 +1,136 @@
+{
+  "metadata": {
+    "description": "Comprehensive data collection for SkillSync application",
+    "generated": "2025-07-26",
+    "version": "1.0.0"
+  },
+  "user_inputs": {
+    "description": "Data that users can input into the application",
+    "data_types": [
+      {
+        "category": "User Profile",
+        "fields": ["yearsOfExperience","currentRole"]
+      },
+      {
+        "category": "Skills Management",
+        "fields": ["skillName", "proficiency"]
+      }
+    ]
+  },
+  "hardcoded_data": {
+    "description": "Static data embedded in the codebase",
+    "data_types": [
+      {
+        "category": "Proficiency Levels",
+        "data": [
+          "Want to Learn",
+          "Learning", 
+          "Proficient",
+          "Mastered"
+        ]
+      },
+      {
+        "category": "Skill Dependencies",
+        "data": {
+          "skillName": "string",
+          "dependencies": "array",
+          "description": "string", 
+          "difficulty": "number (1-10)",
+          "estimatedHours": "number",
+          "enables": "array",
+          "category": "string"
+        },
+        "total_skills": 22,
+        "categories": [
+          "devops",
+          "architecture", 
+          "api",
+          "mobile",
+          "frontend",
+          "programming",
+          "backend",
+          "database",
+          "cloud",
+          "infrastructure",
+          "tools"
+        ]
+      },
+      {
+        "category": "Evaluation Scoring System",
+        "data": {
+          "score_colors": {
+            "green": "score >= 20",
+            "yellow": "score >= 15", 
+            "red": "score < 15"
+          },
+          "grade_system": {
+            "A": ">= 85%",
+            "B": ">= 75%",
+            "C": ">= 65%",
+            "D": ">= 50%",
+            "F": "< 50%"
+          },
+          "score_categories": [
+            "clarity (max 25)",
+            "coverage (max 25)",
+            "depth (max 25)",
+            "misconceptions (max 25)"
+          ]
+        }
+      }
+    ]
+  },
+  "data_flows": {
+    "description": "How data moves through the application",
+    "flows": [
+      {
+        "name": "Skill Creation",
+        "steps": [
+          "User inputs skill name in AddSkillDialog",
+          "Case-insensitive duplicate check",
+          "Generate unique ID",
+          "Auto-initialize predefined checklist if available",
+          "Store in Zustand state"
+        ]
+      },
+      {
+        "name": "Teaching Evaluation", 
+        "steps": [
+          "User selects skill for evaluation",
+          "Display skill-specific prompt",
+          "User provides explanation",
+          "LLM evaluation via API",
+          "Score breakdown and feedback display",
+          "Store evaluation in skill's teachingEvaluations array"
+        ]
+      },
+      {
+        "name": "Skill Consistency Check",
+        "steps": [
+          "Analyze user skills against dependency rules",
+          "Identify missing prerequisites",
+          "Generate warnings with severity levels",
+          "Display recommendations to user"
+        ]
+      }
+    ]
+  },
+  "api_integrations": {
+    "description": "External data sources and APIs",
+    "integrations": [
+      {
+        "name": "LLM Service",
+        "purpose": "Teaching evaluation scoring",
+        "data_sent": "skill name, user explanation, difficulty level",
+        "data_received": "clarity/coverage/depth/misconceptions scores, feedback"
+      },
+      {
+        "name": "Skill Analysis API",
+        "endpoint": "/api/analyze-skill",
+        "purpose": "Missing skill discovery",
+        "data_sent": "skillName, userContext (experience, role, existing skills)",
+        "data_received": "missing skill suggestions with confidence levels"
+      }
+    ]
+  }
+}

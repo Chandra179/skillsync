@@ -36,12 +36,15 @@ export interface Skill {
 export interface UserProfile {
   yearsOfExperience: number
   currentRole: string
+  experience?: number
+  role?: string
 }
 
 interface SkillState {
   skills: Skill[]
   userProfile: UserProfile
-  addSkill: (name: string, parentId?: string) => void
+  profile?: UserProfile
+  addSkill: (skillData: { name: string; proficiency?: ProficiencyLevel }, parentId?: string) => void
   updateSkillProficiency: (id: string, proficiency: ProficiencyLevel) => void
   updateUserProfile: (profile: Partial<UserProfile>) => void
   toggleChecklistItem: (skillId: string, itemId: string) => void
@@ -53,12 +56,14 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 11)
 }
 
-function addSkillToTree(skills: Skill[], name: string, parentId?: string): Skill[] {
+function addSkillToTree(skills: Skill[], skillData: { name: string; proficiency?: ProficiencyLevel }, parentId?: string): Skill[] {
+  const { name, proficiency = 'Want to Learn' } = skillData
+  
   if (!parentId) {
     const newSkill: Skill = {
       id: generateId(),
       name,
-      proficiency: 'Want to Learn',
+      proficiency,
       subSkills: []
     }
     return [...skills, newSkill]
@@ -69,7 +74,7 @@ function addSkillToTree(skills: Skill[], name: string, parentId?: string): Skill
       const newSubSkill: Skill = {
         id: generateId(),
         name,
-        proficiency: 'Want to Learn',
+        proficiency,
         subSkills: [],
         parentId
       }
@@ -81,7 +86,7 @@ function addSkillToTree(skills: Skill[], name: string, parentId?: string): Skill
     if (skill.subSkills.length > 0) {
       return {
         ...skill,
-        subSkills: addSkillToTree(skill.subSkills, name, parentId)
+        subSkills: addSkillToTree(skill.subSkills, skillData, parentId)
       }
     }
     return skill
@@ -156,14 +161,23 @@ function addTeachingEvaluationToTree(skills: Skill[], skillId: string, evaluatio
   })
 }
 
-export const useSkillStore = create<SkillState>((set) => ({
+export const useSkillStore = create<SkillState>((set, get) => ({
   skills: [],
   userProfile: {
     yearsOfExperience: 0,
     currentRole: ''
   },
-  addSkill: (name, parentId) => set((state) => ({
-    skills: addSkillToTree(state.skills, name, parentId)
+  get profile() {
+    const state = get()
+    return {
+      experience: state.userProfile.yearsOfExperience,
+      role: state.userProfile.currentRole,
+      yearsOfExperience: state.userProfile.yearsOfExperience,
+      currentRole: state.userProfile.currentRole
+    }
+  },
+  addSkill: (skillData, parentId) => set((state) => ({
+    skills: addSkillToTree(state.skills, skillData, parentId)
   })),
   updateSkillProficiency: (id, proficiency) => set((state) => ({
     skills: updateSkillProficiencyInTree(state.skills, id, proficiency)

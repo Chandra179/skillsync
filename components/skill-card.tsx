@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, ChevronDown, ChevronRight, Brain } from 'lucide-react'
+import { ChevronDown, ChevronRight, Brain } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Skill, ProficiencyLevel, useSkillStore } from '@/lib/store'
 import { SkillChecklist } from '@/components/skill-checklist'
 import { getSkillChecklist } from '@/lib/skill-checklists'
 import { TeachingEvaluationDialog } from '@/components/teaching-evaluation-dialog'
+import { ConsistencyWarnings } from '@/components/consistency-warnings'
+import { getSkillWarnings } from '@/lib/skill-dependencies'
 
 interface SkillCardProps {
   skill: Skill
@@ -27,9 +27,10 @@ const proficiencyColors = {
 
 export function SkillCard({ skill, level }: SkillCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [newSkillName, setNewSkillName] = useState('')
-  const { addSkill, updateSkillProficiency, toggleChecklistItem, initializeChecklist } = useSkillStore()
+  const { skills, updateSkillProficiency, toggleChecklistItem, initializeChecklist } = useSkillStore()
+  
+  // Get consistency warnings for this specific skill
+  const skillWarnings = getSkillWarnings(skills, skill.id)
 
   useEffect(() => {
     if (!skill.checklist) {
@@ -40,14 +41,6 @@ export function SkillCard({ skill, level }: SkillCardProps) {
     }
   }, [skill.id, skill.name, skill.checklist, initializeChecklist])
 
-  const handleAddSubSkill = () => {
-    if (newSkillName.trim()) {
-      addSkill(newSkillName.trim(), skill.id)
-      setNewSkillName('')
-      setIsDialogOpen(false)
-      setIsExpanded(true)
-    }
-  }
 
   const handleProficiencyChange = (proficiency: ProficiencyLevel) => {
     updateSkillProficiency(skill.id, proficiency)
@@ -93,34 +86,6 @@ export function SkillCard({ skill, level }: SkillCardProps) {
                   </Button>
                 </TeachingEvaluationDialog>
               )}
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="h-8 px-2">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Sub-skill to {skill.name}</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <Input
-                      placeholder="Enter sub-skill name"
-                      value={newSkillName}
-                      onChange={(e) => setNewSkillName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddSubSkill()}
-                    />
-                    <div className="flex gap-2">
-                      <Button onClick={handleAddSubSkill} disabled={!newSkillName.trim()}>
-                        Add Sub-skill
-                      </Button>
-                      <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
             </div>
           </div>
         </CardHeader>
@@ -136,6 +101,13 @@ export function SkillCard({ skill, level }: SkillCardProps) {
               <SelectItem value="Mastered">Mastered</SelectItem>
             </SelectContent>
           </Select>
+          
+          {/* Display consistency warnings */}
+          {skillWarnings.length > 0 && (
+            <div className="mt-4">
+              <ConsistencyWarnings warnings={skillWarnings} />
+            </div>
+          )}
           
           {skill.checklist && skill.checklist.length > 0 && (
             <SkillChecklist

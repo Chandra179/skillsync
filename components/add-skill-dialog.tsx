@@ -14,7 +14,7 @@ export function AddSkillDialog() {
 
   const handleAddSkill = () => {
     if (skillName.trim()) {
-      addSkill(skillName.trim())
+      addSkill({ name: skillName.trim() })
       setSkillName('')
       setIsOpen(false)
     }

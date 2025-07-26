@@ -185,6 +185,83 @@ MISCONCEPTIONS (0-25): Technically accurate with no major errors`
     };
   }
 
+  async analyzeSkillPrerequisites(
+    skillName: string,
+    userExperience: number,
+    currentRole: string,
+    existingSkills: string[]
+  ): Promise<any[]> {
+    const prompt = `Analyze the skill "${skillName}" for someone with ${userExperience} years of experience in the role of "${currentRole}".
+
+Current skills they have: ${existingSkills.join(', ')}
+
+Please identify missing prerequisite skills that would be important for mastering "${skillName}". Consider:
+1. Foundational technologies and concepts
+2. Related tools and frameworks
+3. System administration knowledge
+4. Programming languages or paradigms
+5. Infrastructure and deployment concepts
+
+Return a JSON array of missing skills with this format:
+[
+  {
+    "name": "skill name",
+    "reason": "explanation of why this is needed",
+    "confidence": "high|medium|low",
+    "category": "programming|infrastructure|devops|database|security|networking|other"
+  }
+]
+
+Focus on skills that are truly prerequisite (needed before learning the target skill), not complementary skills. Limit to 5 most important missing skills.`;
+
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'qwen/qwen3-8b',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a senior technical advisor helping developers identify missing prerequisite skills. You must return valid JSON only. Do not include any explanatory text outside the JSON response. Focus on truly prerequisite skills (must know before learning the target skill), not nice-to-have or complementary skills.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`LLM API error: ${response.status}`);
+      }
+
+      const data: LLMResponse = await response.json();
+      const content = data.choices[0]?.message?.content;
+      
+      if (!content) {
+        throw new Error('No response from LLM');
+      }
+
+      // Try to extract JSON from response
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      } else {
+        return JSON.parse(content);
+      }
+      
+    } catch (error) {
+      console.error('LLM skill analysis error:', error);
+      return [];
+    }
+  }
+
   async testConnection(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/models`);

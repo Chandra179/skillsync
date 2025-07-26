@@ -36,19 +36,33 @@ export const appRouter = router({
     }),
   
   validateSkillConsistency: publicProcedure
-    .input(z.object({ skills: z.array(skillSchema) }))
-    .query(({ input }) => {
-      const warnings = validateSkillConsistency(input.skills)
+    .input(z.object({ 
+      skills: z.array(skillSchema),
+      userContext: z.object({
+        yearsOfExperience: z.number().optional(),
+        currentRole: z.string().optional(),
+        existingSkills: z.array(z.string()).optional(),
+        industry: z.string().optional()
+      }).optional()
+    }))
+    .query(async ({ input }) => {
+      const warnings = await validateSkillConsistency(input.skills, input.userContext)
       return { warnings }
     }),
   
   getSkillWarnings: publicProcedure
     .input(z.object({ 
       skills: z.array(skillSchema),
-      skillId: z.string()
+      skillId: z.string(),
+      userContext: z.object({
+        yearsOfExperience: z.number().optional(),
+        currentRole: z.string().optional(),
+        existingSkills: z.array(z.string()).optional(),
+        industry: z.string().optional()
+      }).optional()
     }))
-    .query(({ input }) => {
-      const warnings = getSkillWarnings(input.skills, input.skillId)
+    .query(async ({ input }) => {
+      const warnings = await getSkillWarnings(input.skills, input.skillId, input.userContext)
       return { warnings }
     }),
 })

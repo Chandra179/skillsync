@@ -1,20 +1,14 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import { useSkillStore } from '@/lib/store'
 import { SkillCard } from '@/components/skill-card'
 import { AddSkillDialog } from '@/components/add-skill-dialog'
 import { UserProfileForm } from '@/components/user-profile-form'
 import { MissingSkillsPanel } from '@/components/missing-skills-panel'
-import { LearningRecommendations } from '@/components/learning-recommendations'
-import { getWhatToLearnNext } from '@/lib/learning-path-service'
-
 export default function Home() {
   const { skills } = useSkillStore()
-  
-  
-  // Get "What to Learn Next" recommendations
-  const nextRecommendations = getWhatToLearnNext(skills)
 
   return (
     <main className="min-h-screen p-8">
@@ -33,16 +27,6 @@ export default function Home() {
           <MissingSkillsPanel />
         </div>
         
-        {/* What to Learn Next Recommendations */}
-        {skills.length > 0 && nextRecommendations.length > 0 && (
-          <div className="mb-8">
-            <LearningRecommendations
-              recommendations={nextRecommendations}
-              title="What to Learn Next"
-              description="Skills you're ready to learn based on your current knowledge"
-            />
-          </div>
-        )}
         
         {/* Show consistency warnings when there are skills */}
         {/* {skills.length > 0 && (

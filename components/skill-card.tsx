@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Brain, MoreVertical, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Brain, MoreVertical, Trash2, ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skill, ProficiencyLevel, useSkillStore } from '@/lib/store'
 import { TeachingEvaluationDialog } from '@/components/teaching-evaluation-dialog'
 import { ConsistencyWarnings } from '@/components/consistency-warnings'
-import { getSkillWarnings } from '@/lib/skill-dependencies'
+import { getSkillWarnings, ConsistencyWarning } from '@/lib/skill-dependencies'
 import { getSkillLearningRecommendations, LearningPath } from '@/lib/learning-path-service'
 import { LearningRecommendations } from '@/components/learning-recommendations'
 
@@ -26,7 +26,7 @@ const proficiencyColors = {
 }
 
 export function SkillCard({ skill }: SkillCardProps) {
-  const { skills, updateSkillProficiency, removeSkill } = useSkillStore()
+  const { skills, updateSkillProficiency, removeSkill, userProfile } = useSkillStore()
   const [showRecommendations, setShowRecommendations] = useState(false)
   const [learningPath, setLearningPath] = useState<LearningPath>({
     targetSkill: '',
@@ -34,24 +34,28 @@ export function SkillCard({ skill }: SkillCardProps) {
     nextSteps: [],
     estimatedTotalHours: 0
   })
+  const [isGeneratingPath, setIsGeneratingPath] = useState(false)
+  const [skillWarnings, setSkillWarnings] = useState<ConsistencyWarning[]>([])
   
   // Get consistency warnings for this specific skill
-  const skillWarnings = getSkillWarnings(skills, skill.id)
-  
-  // Get learning recommendations for this skill
   useEffect(() => {
-    const fetchLearningPath = async () => {
+    const loadWarnings = async () => {
       try {
-        const path = await getSkillLearningRecommendations(skill.name, skills)
-        setLearningPath(path)
+        const warnings = await getSkillWarnings(skills, skill.id, {
+          yearsOfExperience: userProfile.yearsOfExperience,
+          currentRole: userProfile.currentRole
+        })
+        setSkillWarnings(warnings)
       } catch (error) {
-        console.error('Failed to fetch learning path:', error)
-        setLearningPath({ targetSkill: skill.name, prerequisites: [], nextSteps: [], estimatedTotalHours: 0 })
+        console.error('Failed to load skill warnings:', error)
+        setSkillWarnings([])
       }
     }
     
-    fetchLearningPath()
-  }, [skill.name, skills])
+    if (userProfile.yearsOfExperience && userProfile.currentRole) {
+      loadWarnings()
+    }
+  }, [skills, skill.id, userProfile.yearsOfExperience, userProfile.currentRole])
 
   const handleProficiencyChange = (proficiency: ProficiencyLevel) => {
     updateSkillProficiency(skill.id, proficiency)
@@ -60,6 +64,21 @@ export function SkillCard({ skill }: SkillCardProps) {
   const handleRemoveSkill = () => {
     removeSkill(skill.id)
   }
+
+  const handleGenerateLearningPath = async () => {
+    setIsGeneratingPath(true)
+    try {
+      const path = await getSkillLearningRecommendations(skill.name, skills)
+      setLearningPath(path)
+      setShowRecommendations(true)
+    } catch (error) {
+      console.error('Failed to fetch learning path:', error)
+      setLearningPath({ targetSkill: skill.name, prerequisites: [], nextSteps: [], estimatedTotalHours: 0 })
+    } finally {
+      setIsGeneratingPath(false)
+    }
+  }
+
 
   return (
     <motion.div
@@ -92,6 +111,14 @@ export function SkillCard({ skill }: SkillCardProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleGenerateLearningPath} disabled={isGeneratingPath}>
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    {isGeneratingPath ? 'Generating...' : 'Generate Learning Path'}
+                  </DropdownMenuItem>
+                  {/* <DropdownMenuItem onClick={handleGenerateWhatToLearnNext} disabled={isGeneratingWhatToLearn}>
+                    <Lightbulb className="h-4 w-4 mr-2" />
+                    {isGeneratingWhatToLearn ? 'Generating...' : 'What to Learn Next'}
+                  </DropdownMenuItem> */}
                   <DropdownMenuItem onClick={handleRemoveSkill} className="text-red-600 focus:text-red-600">
                     <Trash2 className="h-4 w-4 mr-2" />
                     Remove Skill
@@ -122,7 +149,7 @@ export function SkillCard({ skill }: SkillCardProps) {
           )}
           
           {/* Learning Recommendations Section */}
-          {(learningPath.prerequisites.length > 0 || learningPath.nextSteps.length > 0) && (
+          {showRecommendations && learningPath.prerequisites.length > 0 && (
             <div className="mt-4">
               <Button
                 variant="ghost"
@@ -145,16 +172,7 @@ export function SkillCard({ skill }: SkillCardProps) {
                       title="Prerequisites"
                       description={`Learn these skills before advancing your ${skill.name} proficiency`}
                     />
-                  )}
-                  
-                  {learningPath.nextSteps.length > 0 && (
-                    <LearningRecommendations
-                      recommendations={learningPath.nextSteps}
-                      title="What This Enables"
-                      description={`Skills you can learn next with your ${skill.name} knowledge`}
-                    />
-                  )}
-                  
+                  )}              
                   {learningPath.estimatedTotalHours > 0 && (
                     <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
                       Total estimated learning time for prerequisites: {learningPath.estimatedTotalHours} hours
@@ -164,6 +182,7 @@ export function SkillCard({ skill }: SkillCardProps) {
               )}
             </div>
           )}
+          
           
           {/* {skill.checklist && skill.checklist.length > 0 && (
             <SkillChecklist

@@ -1,5 +1,5 @@
 import { Skill } from './store'
-import { SKILL_DEPENDENCIES, UserContext, getSkillDependencies } from './skill-dependencies'
+import { UserContext, getSkillDependencies } from './skill-dependencies'
 
 export interface MissingSkill {
   id: string
@@ -19,9 +19,9 @@ export interface SkillAnalysisRequest {
 }
 
 /**
- * Discover missing prerequisite skills using hybrid approach
+ * Discover missing prerequisite skills using LLM analysis
  */
-export async function discoverMissingSkillsFromHybrid(skills: Skill[], userContext?: UserContext): Promise<MissingSkill[]> {
+export async function discoverMissingSkillsFromLLM(skills: Skill[], userContext?: UserContext): Promise<MissingSkill[]> {
   const missingSkills: MissingSkill[] = []
   const allSkills = getAllSkillsFlat(skills)
   const skillNames = allSkills.map(s => s.name.toLowerCase())
@@ -46,11 +46,11 @@ export async function discoverMissingSkillsFromHybrid(skills: Skill[], userConte
         
         if (!hasPrerequisite) {
           missingSkills.push({
-            id: `hybrid-${skill.id}-${dependency.toLowerCase().replace(/\s+/g, '-')}`,
+            id: `llm-${skill.id}-${dependency.toLowerCase().replace(/\s+/g, '-')}`,
             name: dependency,
             reason: `Required for ${skill.name} - ${dependencyData.description}`,
-            confidence: dependencyData.source === 'algorithmic' ? 'high' : 'medium',
-            source: 'hybrid',
+            confidence: 'medium',
+            source: 'llm',
             parentSkill: skill.name,
             category: dependencyData.category || getCategoryForSkill(dependency)
           })
@@ -65,48 +65,6 @@ export async function discoverMissingSkillsFromHybrid(skills: Skill[], userConte
   return removeDuplicateMissingSkills(missingSkills)
 }
 
-/**
- * Discover missing prerequisite skills using rule-based approach (legacy)
- */
-export function discoverMissingSkillsFromRules(skills: Skill[]): MissingSkill[] {
-  const missingSkills: MissingSkill[] = []
-  const allSkills = getAllSkillsFlat(skills)
-  const skillNames = allSkills.map(s => s.name.toLowerCase())
-  
-  // Check each skill for missing prerequisites
-  for (const skill of allSkills) {
-    if (skill.proficiency === 'Want to Learn') continue
-    
-    const dependencyRule = SKILL_DEPENDENCIES.find(rule => 
-      rule.skillName.toLowerCase() === skill.name.toLowerCase()
-    )
-    
-    if (!dependencyRule) continue
-    
-    // Check each dependency
-    for (const dependency of dependencyRule.dependencies) {
-      const hasPrerequisite = skillNames.some(name => 
-        name === dependency.toLowerCase() ||
-        name.includes(dependency.toLowerCase()) ||
-        dependency.toLowerCase().includes(name)
-      )
-      
-      if (!hasPrerequisite) {
-        missingSkills.push({
-          id: `rule-${skill.id}-${dependency.toLowerCase().replace(/\s+/g, '-')}`,
-          name: dependency,
-          reason: `Required for ${skill.name} - ${dependencyRule.description}`,
-          confidence: 'high',
-          source: 'rules',
-          parentSkill: skill.name,
-          category: getCategoryForSkill(dependency)
-        })
-      }
-    }
-  }
-  
-  return removeDuplicateMissingSkills(missingSkills)
-}
 
 /**
  * Analyze skill using LLM to discover missing prerequisites
@@ -153,19 +111,19 @@ export async function analyzeSkillWithLLM(request: SkillAnalysisRequest): Promis
 }
 
 /**
- * Enhanced hybrid approach using new skill dependency system
+ * Enhanced LLM-only approach using skill dependency system
  */
 export async function discoverMissingSkillsEnhanced(
   skills: Skill[], 
   userContext: UserContext
 ): Promise<MissingSkill[]> {
   try {
-    // Use the new hybrid approach directly
-    return await discoverMissingSkillsFromHybrid(skills, userContext)
+    // Use the LLM-based approach directly
+    return await discoverMissingSkillsFromLLM(skills, userContext)
   } catch (error) {
     console.error('Error in enhanced missing skills discovery:', error)
-    // Fallback to rule-based approach
-    return discoverMissingSkillsFromRules(skills)
+    // Return empty array if LLM analysis fails
+    return []
   }
 }
 
@@ -192,15 +150,10 @@ function removeDuplicateMissingSkills(skills: MissingSkill[]): MissingSkill[] {
   }
   
   return unique.sort((a, b) => {
-    // Sort by confidence (high > medium > low) then by source (hybrid > rules > llm)
+    // Sort by confidence (high > medium > low)
     const confidenceOrder = { high: 3, medium: 2, low: 1 }
-    const sourceOrder = { hybrid: 3, rules: 2, llm: 1 }
     
-    if (a.confidence !== b.confidence) {
-      return confidenceOrder[b.confidence] - confidenceOrder[a.confidence]
-    }
-    
-    return sourceOrder[b.source] - sourceOrder[a.source]
+    return confidenceOrder[b.confidence] - confidenceOrder[a.confidence]
   })
 }
 

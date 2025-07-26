@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Lightbulb, Brain, Settings } from 'lucide-react'
+import { Loader2, Plus, Lightbulb, Brain } from 'lucide-react'
 import { useSkillStore } from '@/lib/store'
 import { discoverMissingSkillsEnhanced, MissingSkill } from '@/lib/missing-skills-service'
 
@@ -53,12 +53,10 @@ export function MissingSkillsPanel() {
 
   const getSourceIcon = (source: MissingSkill['source']) => {
     switch (source) {
-      case 'rules':
-        return <Settings className="h-3 w-3" />
       case 'llm':
         return <Brain className="h-3 w-3" />
-      case 'hybrid':
-        return <Lightbulb className="h-3 w-3" />
+      default:
+        return <Brain className="h-3 w-3" />
     }
   }
 
@@ -199,9 +197,9 @@ export function MissingSkillsPanel() {
             
             <div className="mt-6 p-3 bg-blue-50 rounded-md">
               <p className="text-xs text-blue-800">
-                <span className="font-medium">How it works:</span> This analysis combines rule-based knowledge 
-                (predefined skill dependencies) with AI analysis of your specific context. 
-                Skills marked as &quot;hybrid&quot; were identified by both approaches for higher confidence.
+                <span className="font-medium">How it works:</span> This analysis uses AI to understand 
+                skill dependencies based on your specific context and experience level. 
+                Recommendations are tailored to your role and existing skills.
               </p>
             </div>
           </div>
